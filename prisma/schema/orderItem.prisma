@@ -1,0 +1,12 @@
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int      // e.g. Single Clove Garlic... x 1[cite: 5]
+  price     Decimal  @db.Decimal(12, 2) // Unit price at the time of purchase
+
+  @@index([orderId])
+  @@index([productId])
+}

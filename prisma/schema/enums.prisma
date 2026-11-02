@@ -1,0 +1,18 @@
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+enum PaymentMethod {
+  CASH_ON_DELIVERY 
+  BKASH          
+}

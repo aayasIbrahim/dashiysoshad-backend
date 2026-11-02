@@ -1,0 +1,36 @@
+model Order {
+  id              String        @id @default(uuid())
+  
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+
+  // Billing & Shipping Information 
+  customerName    String        
+  customerPhone   String        
+  shippingAddress String        
+  country         String        @default("Bangladesh") // Country dropdown
+
+  orderNotes      String?       
+
+  // Financial Breakdown 
+  subtotal        Decimal       @db.Decimal(12, 2) // Items total price (Subtotal)
+  shippingFee     Decimal       @db.Decimal(12, 2) // Shipping charge (e.g. 70b)
+  discountAmount  Decimal       @default(0) @db.Decimal(12, 2) // Coupon discount if applied
+  couponCode      String?       // Have a coupon?
+  totalPrice      Decimal       @db.Decimal(12, 2) // Final Total (Subtotal + Shipping - Discount)[cite: 5]
+
+
+  paymentMethod   PaymentMethod @default(CASH_ON_DELIVERY) // Cash on delivery / bKash[cite: 5]
+  isPaid          Boolean       @default(false)
+  
+  // Status Tracking
+  orderStatus     OrderStatus   @default(PENDING)
+
+  // Items
+  orderItems      OrderItem[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+}

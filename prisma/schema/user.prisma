@@ -1,0 +1,11 @@
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?  @unique
+  phone     String   @unique
+  password  String?  // Admin/Staff/Registered User-er authentication-er jonno
+  role      Role     @default(CUSTOMER)
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
