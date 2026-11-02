@@ -4,25 +4,35 @@ import { catchAsync } from "../utils/catchAsync";
 import httpStatus from "http-status";
 import { AppError } from "../utils/AppError";
 
-export const validateRequest = (zodSchema: z.ZodObject) => {
-  return catchAsync((req: Request, res: Response, next: NextFunction) => {
-    // const payload = req.body ? req.body : {}
-    const payload = req.body ?? {};
+type RequestSource = "body" | "query" | "params";
 
-    const result = zodSchema.safeParse(payload);
+export const validateRequest = (
+	zodSchema: z.ZodType,
+	source: RequestSource = "body",
+) => {
+	return catchAsync((req: Request, res: Response, next: NextFunction) => {
+		const payload = req[source] ?? {};
 
-    if (!result.success) {
-      console.log(result.error);
-      console.log(result.error.issues);
+		const result = zodSchema.safeParse(payload);
 
-      throw new AppError(
-        httpStatus.BAD_REQUEST,
-        result.error.issues[0].message,
-      );
-    }
+		if (!result.success) {
+			throw new AppError(
+				httpStatus.BAD_REQUEST,
+				result.error.issues[0].message,
+			);
+		}
 
-    req.body = result.data;
+		if (source === "body") {
+			req.body = result.data;
+		} else {
+			Object.defineProperty(req, source, {
+				configurable: true,
+				enumerable: true,
+				value: result.data,
+				writable: true,
+			});
+		}
 
-    next();
-  });
+		next();
+	});
 };

@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
+import { MulterError } from "multer";
 import { Prisma } from "../../generated/prisma/client";
 import config from "../config";
 import { AppError } from "../utils/AppError";
@@ -19,20 +20,26 @@ export const globalErrorHandler = async (
 	const errorName = err.name || "Internal Server Error";
 	// let errorDetails = err.stack
 
-	if (err instanceof Prisma.PrismaClientValidationError) {
+	if (err instanceof MulterError) {
+		statusCode = err.code === "LIMIT_FILE_SIZE" ? 413 : httpStatus.BAD_REQUEST;
+		errorMessage =
+			err.code === "LIMIT_FILE_SIZE"
+				? "Each image must be 5 MB or smaller"
+				: "Invalid product image upload";
+	} else if (err instanceof Prisma.PrismaClientValidationError) {
 		statusCode = httpStatus.BAD_REQUEST;
 		errorMessage = "You have provided incorrect field type or missing fields";
 	} else if (err instanceof Prisma.PrismaClientKnownRequestError) {
 		if (err.code === "P2002") {
-			(statusCode = httpStatus.BAD_REQUEST),
-				(errorMessage = "Duplicate Key Error");
+			statusCode = httpStatus.CONFLICT;
+			errorMessage = "A record with this value already exists";
 		} else if (err.code === "P2003") {
-			(statusCode = httpStatus.BAD_REQUEST),
-				(errorMessage = "Foreign key constraint failed");
+			statusCode = httpStatus.CONFLICT;
+			errorMessage =
+				"The record cannot be changed because it is referenced by another record";
 		} else if (err.code === "P2025") {
-			(statusCode = httpStatus.BAD_REQUEST),
-				(errorMessage =
-					"An operation failed because it depends on one or more records that were required but not found.");
+			statusCode = httpStatus.NOT_FOUND;
+			errorMessage = "The requested record was not found";
 		}
 	} else if (err instanceof Prisma.PrismaClientInitializationError) {
 		if (err.errorCode === "P1000") {
@@ -46,10 +53,9 @@ export const globalErrorHandler = async (
 	} else if (err instanceof Prisma.PrismaClientUnknownRequestError) {
 		statusCode = httpStatus.INTERNAL_SERVER_ERROR;
 		errorMessage = "Error occurred during query execution";
-	} else if( err instanceof AppError){
-		errorMessage = err.message
-		statusCode = err.statusCode
-
+	} else if (err instanceof AppError) {
+		errorMessage = err.message;
+		statusCode = err.statusCode;
 	} else if (err instanceof Error) {
 		errorMessage = err.message;
 	}
@@ -60,7 +66,7 @@ export const globalErrorHandler = async (
 		name:
 			config.node_env === "development" ? errorName : "Internal Server Error",
 		message:
-			config.node_env === "development"
+			config.node_env === "development" || err instanceof AppError
 				? errorMessage
 				: "Internal Server Error",
 		error: config.node_env === "development" ? err : undefined,

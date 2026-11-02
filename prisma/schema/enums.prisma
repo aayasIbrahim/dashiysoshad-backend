@@ -5,6 +5,12 @@ enum Role {
   CUSTOMER
 }
 
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
 enum OrderStatus {
   PENDING
   PROCESSING
@@ -12,6 +18,7 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
 }
+
 enum PaymentMethod {
   CASH_ON_DELIVERY 
   BKASH          

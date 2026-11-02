@@ -19,7 +19,6 @@ model Order {
   couponCode      String?       // Have a coupon?
   totalPrice      Decimal       @db.Decimal(12, 2) // Final Total (Subtotal + Shipping - Discount)[cite: 5]
 
-
   paymentMethod   PaymentMethod @default(CASH_ON_DELIVERY) // Cash on delivery / bKash[cite: 5]
   isPaid          Boolean       @default(false)
   
