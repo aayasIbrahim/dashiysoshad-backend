@@ -8,6 +8,7 @@ model User {
   status    UserStatus @default(ACTIVE)
   orders    Order[]
   products  Product[]
+  categories Category[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }

@@ -2,4 +2,8 @@ model Category {
   id       String    @id @default(uuid())
   name     String    @unique
   products Product[]
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+   @@index([name])
+  @@index([userId])
 }
