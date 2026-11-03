@@ -27,6 +27,7 @@ export type BkashPaymentResult = {
 	statusMessage?: unknown;
 	transactionStatus?: unknown;
 	trxID?: unknown;
+	paymentExecuteTime?: unknown;
 	amount?: unknown;
 	currency?: unknown;
 	merchantInvoiceNumber?: unknown;

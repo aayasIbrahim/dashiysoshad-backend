@@ -22,7 +22,15 @@ import type {
 	ListOrdersQuery,
 	UpdateOrderStatusPayload,
 } from "./order.interface";
-import { defaultShippingFee, ensureMoneyRange, normalizePhone, orderInclude } from "./order.utils";
+import {
+	canAccessOrderPayment,
+	defaultShippingFee,
+	ensureMoneyRange,
+	getBkashPaidAt,
+	normalizePhone,
+	orderInclude,
+	verifyBkashResult,
+} from "./order.utils";
 
 const PENDING_BKASH_PAYMENT_MAX_AGE_MS = 15 * 60 * 1000;
 
@@ -159,9 +167,12 @@ const applyGatewayPaymentStatus = async (
 		where: { id: paymentId, status: PaymentStatus.PENDING },
 		data: {
 			status,
-			gatewayResponse: JSON.parse(
-				JSON.stringify(result),
-			) as Prisma.InputJsonValue,
+			gatewayResponse: {
+				transactionStatus:
+					typeof result.transactionStatus === "string"
+						? result.transactionStatus
+						: null,
+			},
 		},
 	});
 	const currentPayment = await prisma.payment.findUniqueOrThrow({
@@ -174,34 +185,7 @@ const applyGatewayPaymentStatus = async (
 	};
 };
 
-const canAccessOrderPayment = (
-	order: { userId: string | null; customerPhone: string },
-	actor?: RequestUser,
-	phone?: string,
-) => {
-	const isStaff =
-		actor?.role === Role.SUPER_ADMIN ||
-		actor?.role === Role.ADMIN ||
-		actor?.role === Role.STAFF;
 
-	if (isStaff) {
-		return;
-	}
-
-	if (order.userId) {
-		if (!actor || actor.userId !== order.userId) {
-			throw new AppError(httpStatus.FORBIDDEN, "You cannot access this order");
-		}
-		return;
-	}
-
-	if (!phone || normalizePhone(phone) !== order.customerPhone) {
-		throw new AppError(
-			httpStatus.FORBIDDEN,
-			"Provide the phone number used for this guest order",
-		);
-	}
-};
 
 const createBkashCheckout = async (
 	orderId: string,
@@ -323,43 +307,6 @@ const createBkashCheckout = async (
 	}
 };
 
-const verifyBkashResult = (
-	payment: {
-		bkashPaymentId: string | null;
-		merchantInvoiceNumber: string;
-		amount: Prisma.Decimal;
-		currency: string;
-	},
-	result: BkashPaymentResult,
-) => {
-	let amountMatches = false;
-	if (typeof result.amount === "string" || typeof result.amount === "number") {
-		try {
-			amountMatches = new Prisma.Decimal(String(result.amount)).equals(
-				payment.amount,
-			);
-		} catch {
-			amountMatches = false;
-		}
-	}
-
-	if (
-		result.transactionStatus !== "Completed" ||
-		(result.paymentID !== undefined &&
-			result.paymentID !== payment.bkashPaymentId) ||
-		(result.merchantInvoiceNumber !== undefined &&
-			result.merchantInvoiceNumber !== payment.merchantInvoiceNumber) ||
-		result.currency !== payment.currency ||
-		!amountMatches ||
-		typeof result.trxID !== "string" ||
-		!result.trxID
-	) {
-		throw new AppError(
-			httpStatus.BAD_GATEWAY,
-			"bKash payment verification failed",
-		);
-	}
-};
 
 const completeBkashPayment = async (
 	paymentId: string,
@@ -375,32 +322,53 @@ const completeBkashPayment = async (
 		return { orderId: payment.orderId, status: payment.status };
 	}
 	verifyBkashResult(payment, result);
+	const verifiedAt = new Date();
+	const { paidAt, source: paidAtSource } = getBkashPaidAt(
+		result,
+		payment.createdAt,
+		verifiedAt,
+	);
+	const gatewayAudit = {
+		transactionStatus: "Completed",
+		paymentID: payment.bkashPaymentId,
+		trxID: result.trxID as string,
+		amount: payment.amount.toFixed(2),
+		currency: payment.currency,
+		merchantInvoiceNumber: payment.merchantInvoiceNumber,
+		paymentExecuteTime: paidAtSource === "BKASH" ? paidAt.toISOString() : null,
+		paidAtSource,
+		verifiedAt: verifiedAt.toISOString(),
+	} satisfies Prisma.InputJsonObject;
 
 	await prisma.$transaction(async (tx) => {
-		const currentPayment = await tx.payment.findUniqueOrThrow({
-			where: { id: paymentId },
-		});
-		if (currentPayment.status === PaymentStatus.PAID) {
-			return;
-		}
-		await tx.payment.update({
-			where: { id: paymentId },
+		const updatedPayment = await tx.payment.updateMany({
+			where: { id: paymentId, status: PaymentStatus.PENDING },
 			data: {
 				status: PaymentStatus.PAID,
 				bkashTrxId: result.trxID as string,
-				paidAt: new Date(),
-				gatewayResponse: JSON.parse(
-					JSON.stringify(result),
-				) as Prisma.InputJsonValue,
+				paidAt,
+				gatewayResponse: gatewayAudit,
 			},
 		});
-		await tx.order.update({
-			where: { id: payment.orderId },
-			data: { isPaid: true },
-		});
+		if (updatedPayment.count === 1) {
+			await tx.order.update({
+				where: { id: payment.orderId },
+				data: { isPaid: true },
+			});
+		}
 	});
 
-	return { orderId: payment.orderId, status: PaymentStatus.PAID };
+	const finalPayment = await prisma.payment.findUniqueOrThrow({
+		where: { id: paymentId },
+		select: { orderId: true, status: true },
+	});
+	if (finalPayment.status !== PaymentStatus.PAID) {
+		throw new AppError(
+			httpStatus.CONFLICT,
+			"Payment status changed while recording the verified transaction",
+		);
+	}
+	return { orderId: finalPayment.orderId, status: finalPayment.status };
 };
 
 const handleBkashCallback = async (paymentId: string, callbackStatus: string) => {
