@@ -7,9 +7,9 @@ export const upload = multer({
 	limits: {
 		files: 10,
 		fileSize: 5 * 1024 * 1024,
-		fields: 1,
+		fields: 7,
 		fieldSize: 100 * 1024,
-		parts: 11,
+		parts: 17,
 	},
 	fileFilter: (_req, file, callback) => {
 		if (

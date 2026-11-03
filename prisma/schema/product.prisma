@@ -7,13 +7,14 @@ model Product {
   stock          Int      @default(0)
   images         String[] @default([])
   imagePublicIds String[] @default([])
-
   weight     String?
   categoryId String
   category   Category  @relation(fields: [categoryId], references: [id])
   userId     String?
   user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   orderItems OrderItem[]
+  isDeleted          Boolean      @default(false)
+  deletedAt          DateTime?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 

@@ -27,7 +27,7 @@ const createProduct = catchAsync(async (req: Request, res: Response) => {
 	}
 
 	const payload = parseProductData(
-		req.is("multipart/form-data") ? req.body.data : req.body,
+		req.is("multipart/form-data") ? (req.body.data ?? req.body) : req.body,
 		ProductValidation.CreateProductZodSchema,
 	);
 	const product = await ProductService.createProduct(

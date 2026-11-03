@@ -10,7 +10,9 @@ import type {
 const categoryInclude = {
 	_count: {
 		select: {
-			products: true,
+			products: {
+				where: { isDeleted: false },
+			},
 		},
 	},
 	user: {
@@ -98,7 +100,9 @@ const deleteCategory = async (id: string) => {
 			id: true,
 			_count: {
 				select: {
-					products: true,
+					products: {
+						where: { isDeleted: false },
+					},
 				},
 			},
 		},

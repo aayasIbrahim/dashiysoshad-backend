@@ -10,7 +10,7 @@ const productFields = {
 		.min(1)
 		.max(80)
 		.transform((sku) => sku.toUpperCase()),
-	stock: z.number().int().min(0),
+	stock: z.coerce.number().int().min(0),
 	weight: z.string().trim().max(100).nullable(),
 	categoryId: z.uuid(),
 };

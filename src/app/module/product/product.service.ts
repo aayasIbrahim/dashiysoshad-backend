@@ -55,6 +55,7 @@ const getProducts = async (query: ProductListQuery) => {
 	} = query;
 
 	const where: Prisma.ProductWhereInput = {
+		isDeleted: false,
 		...(categoryId ? { categoryId } : {}),
 		...(search
 			? {
@@ -103,8 +104,8 @@ const getProducts = async (query: ProductListQuery) => {
 };
 
 const getProductById = async (id: string) => {
-	const product = await prisma.product.findUnique({
-		where: { id },
+	const product = await prisma.product.findFirst({
+		where: { id, isDeleted: false },
 		include: productInclude,
 	});
 
@@ -122,8 +123,8 @@ const updateProduct = async (
 ) => {
 	await ensureCategoryExists(payload.categoryId);
 
-	const existingProduct = await prisma.product.findUnique({
-		where: { id },
+	const existingProduct = await prisma.product.findFirst({
+		where: { id, isDeleted: false },
 		select: { imagePublicIds: true },
 	});
 
@@ -135,7 +136,7 @@ const updateProduct = async (
 
 	try {
 		const updatedProduct = await prisma.product.update({
-			where: { id },
+			where: { id, isDeleted: false },
 			data: {
 				...payload,
 				...(uploadedImages.length > 0
@@ -160,10 +161,14 @@ const updateProduct = async (
 };
 
 const deleteProduct = async (id: string) => {
-	const deletedProduct = await prisma.product.delete({ where: { id } });
-	await deleteCloudinaryImages(deletedProduct.imagePublicIds);
-
-	return deletedProduct;
+	return prisma.product.update({
+		where: { id, isDeleted: false },
+		data: {
+			isDeleted: true,
+			deletedAt: new Date(),
+		},
+		include: productInclude,
+	});
 };
 
 export const ProductService = {
