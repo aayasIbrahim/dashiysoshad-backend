@@ -15,6 +15,7 @@ import { notFound } from "./app/middleware/notFound";
 import { AuthRoutes } from "./app/module/auth/auth.route";
 import { CategoryRoutes } from "./app/module/category/category.route";
 import { ProductRoutes } from "./app/module/product/product.route";
+import { OrderRoutes } from "./app/module/order/order.route";
 
 const app: Application = express();
 
@@ -35,6 +36,7 @@ app.use(cookieParser());
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/categories", CategoryRoutes);
 app.use("/api/v1/products", ProductRoutes);
+app.use("/api/v1/orders", OrderRoutes);
 
 // Basic route
 app.get("/", async (req: Request, res: Response) => {

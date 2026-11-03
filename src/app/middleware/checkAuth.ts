@@ -22,9 +22,7 @@ declare global {
 	}
 }
 
-// auth(Role.ADMIN, Role.USER, Role.Author)
-// auth() => ...requiredRoles => [Role.ADMIN, Role.USER, Role.AUTHOR]
-export const auth = (...requiredRoles: Role[]) => {
+const authenticate = (requiredRoles: Role[], optional: boolean) => {
 	return catchAsync(async (req: Request, res: Response, next: NextFunction) => {
 		const token = req.cookies.accessToken
 			? req.cookies.accessToken
@@ -33,6 +31,11 @@ export const auth = (...requiredRoles: Role[]) => {
 				: req.headers.authorization;
 
 		if (!token) {
+			if (optional) {
+				next();
+				return;
+			}
+
 			throw new AppError(
 				httpStatus.UNAUTHORIZED,
 				"You are not logged in. Please log in to access this resource.",
@@ -103,3 +106,8 @@ export const auth = (...requiredRoles: Role[]) => {
 		next();
 	});
 };
+
+export const auth = (...requiredRoles: Role[]) =>
+	authenticate(requiredRoles, false);
+
+export const optionalAuth = () => authenticate([], true);

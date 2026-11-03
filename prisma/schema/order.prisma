@@ -27,6 +27,7 @@ model Order {
 
   // Items
   orderItems      OrderItem[]
+  payments        Payment[]
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

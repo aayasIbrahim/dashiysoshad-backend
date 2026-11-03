@@ -23,3 +23,11 @@ enum PaymentMethod {
   CASH_ON_DELIVERY 
   BKASH          
 }
+enum PaymentStatus {
+  PENDING
+  UNPAID
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
