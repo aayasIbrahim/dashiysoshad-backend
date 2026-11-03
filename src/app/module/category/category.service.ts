@@ -13,18 +13,31 @@ const categoryInclude = {
 			products: true,
 		},
 	},
+	user: {
+		select: {
+			id: true,
+			name: true,
+			email: true,
+		},
+	},
 } as const;
 
-const createCategory = (payload: CreateCategoryPayload) =>
+const createCategory = (payload: CreateCategoryPayload, createdById: string) =>
 	prisma.category.create({
-		data: payload,
+		data: {
+			...payload,
+			userId: createdById,
+		},
 		include: categoryInclude,
 	});
 
 const getCategories = async (query: CategoryListQuery) => {
-	const where = query.search
-		? { name: { contains: query.search, mode: "insensitive" as const } }
-		: {};
+	const where = {
+		isDeleted: false,
+		...(query.search
+			? { name: { contains: query.search, mode: "insensitive" as const } }
+			: {}),
+	};
 
 	const [categories, total] = await prisma.$transaction([
 		prisma.category.findMany({
@@ -49,8 +62,8 @@ const getCategories = async (query: CategoryListQuery) => {
 };
 
 const getCategoryById = async (id: string) => {
-	const category = await prisma.category.findUnique({
-		where: { id },
+	const category = await prisma.category.findFirst({
+		where: { id, isDeleted: false },
 		include: categoryInclude,
 	});
 
@@ -61,16 +74,26 @@ const getCategoryById = async (id: string) => {
 	return category;
 };
 
-const updateCategory = (id: string, payload: UpdateCategoryPayload) =>
-	prisma.category.update({
+const updateCategory = async (id: string, payload: UpdateCategoryPayload) => {
+	const category = await prisma.category.findFirst({
+		where: { id, isDeleted: false },
+		select: { id: true },
+	});
+
+	if (!category) {
+		throw new AppError(httpStatus.NOT_FOUND, "Category not found");
+	}
+
+	return prisma.category.update({
 		where: { id },
 		data: payload,
 		include: categoryInclude,
 	});
+};
 
 const deleteCategory = async (id: string) => {
-	const category = await prisma.category.findUnique({
-		where: { id },
+	const category = await prisma.category.findFirst({
+		where: { id, isDeleted: false },
 		select: {
 			id: true,
 			_count: {
@@ -92,7 +115,14 @@ const deleteCategory = async (id: string) => {
 		);
 	}
 
-	return prisma.category.delete({ where: { id } });
+	return prisma.category.update({
+		where: { id },
+		data: {
+			isDeleted: true,
+			deletedAt: new Date(),
+		},
+		include: categoryInclude,
+	});
 };
 
 export const CategoryService = {

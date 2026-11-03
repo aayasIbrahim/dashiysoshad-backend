@@ -104,8 +104,8 @@ export const ensureCategoryExists = async (
 		return;
 	}
 
-	const category = await prisma.category.findUnique({
-		where: { id: categoryId },
+	const category = await prisma.category.findFirst({
+		where: { id: categoryId, isDeleted: false },
 		select: { id: true },
 	});
 

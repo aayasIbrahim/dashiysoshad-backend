@@ -4,6 +4,10 @@ model Category {
   products Product[]
   userId     String?
   user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+   isDeleted          Boolean      @default(false)
+  deletedAt          DateTime?
+   createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
    @@index([name])
   @@index([userId])
 }

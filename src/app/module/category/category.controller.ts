@@ -22,7 +22,14 @@ const parseCategoryQuery = (query: Request["query"]): CategoryListQuery => {
 };
 
 const createCategory = catchAsync(async (req: Request, res: Response) => {
-	const category = await CategoryService.createCategory(req.body);
+	if (!req.user) {
+		throw new AppError(httpStatus.UNAUTHORIZED, "User information is missing");
+	}
+
+	const category = await CategoryService.createCategory(
+		req.body,
+		req.user.userId,
+	);
 
 	sendResponse(res, {
 		statusCode: httpStatus.CREATED,
